@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Snake Game - Dual Mode</title>
+  <style>
+    body {
+      background: #1e1e1e;
+      color: white;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      height: 100vh;
+      justify-content: center;
+    }
+
+    canvas {
+      background: #111;
+      border: 2px solid #0f0;
+    }
+
+    #info, #setup {
+      margin: 10px;
+      font-size: 18px;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #0f0;
+      border: none;
+      border-radius: 5px;
+      color: #000;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0c0;
+    }
+
+    select {
+      padding: 6px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐍 Dual Mode Snake</h1>
+
+  <div id="setup">
+    Game Mode:
+    <select id="mode">
+      <option value="classic">Classic (Smooth)</option>
+      <option value="speed">Speed Mode (Rival Snake)</option>
+    </select><br><br>
+    Fruits on screen:
+    <select id="fruit-count">
+      <option value="1" selected>1</option>
+      <option value="2">2</option>
+      <option value="5">5</option>
+      <option value="10">10</option>
+      <option value="20">20</option>
+    </select><br><br>
+    <button id="start-btn">Start Game</button>
+  </div>
+
+  <div id="info" style="display:none;">Score: 0 | Level: 1 | High Score: 0</div>
+  <canvas id="game" width="600" height="600" style="display:none;"></canvas>
+  <button id="play-again" style="display:none;">Play Again</button>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const info = document.getElementById("info");
+    const setup = document.getElementById("setup");
+    const fruitSelect = document.getElementById("fruit-count");
+    const modeSelect = document.getElementById("mode");
+    const startBtn = document.getElementById("start-btn");
+    const playAgainBtn = document.getElementById("play-again");
+
+    const gridSize = 20;
+    let snake = [], rivalSnake = [];
+    let direction = { x: 1, y: 0 };
+    let nextDirection = { x: 1, y: 0 };
+    let previousHead = null, currentHead = null;
+    let score = 0, level = 1, tickRate = 150, tickTimer = 0;
+    let fruitCount = 1, highScore = 0;
+    let gameRunning = false;
+    let lastTime = 0;
+    let gameMode = "classic";
+    let powerupTimeout;
+
+    function initGame() {
+      gameMode = modeSelect.value;
+      snake = [{ x: 8, y: 8 }];
+      rivalSnake = [{ x: 12, y: 12 }];
+      direction = { x: 1, y: 0 };
+      nextDirection = { x: 1, y: 0 };
+      previousHead = { x: 8, y: 8 };
+      currentHead = { x: 8, y: 8 };
+      score = 0;
+      level = 1;
+      tickRate = 150;
+      tickTimer = 0;
+      fruitCount = parseInt(fruitSelect.value);
+      highScore = parseInt(localStorage.getItem("snakeHighScore")) || 0;
+
+      // Place fruits, obstacles, and powerups
+      placeFruits();
+      placeObstacles();
+      placePowerup();
+
+      updateInfo();
+      playAgainBtn.style.display = "none";
+      gameRunning = true;
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateInfo() {
+      info.textContent = `Score: ${score} | Level: ${level} | High Score: ${highScore}`;
+    }
+
+    function randomPosition(exclude = []) {
+      let pos;
+      do {
+        pos = {
+          x: Math.floor(Math.random() * (canvas.width / gridSize)),
+          y: Math.floor(Math.random() * (canvas.height / gridSize))
+        };
+      } while (
+        snake.concat(rivalSnake).some(s => s.x === pos.x && s.y === pos.y) ||
+        exclude.some(e => e.x === pos.x && e.y === pos.y)
+      );
+      return pos;
+    }
+
+    function placeFruits() {
+      foods = [];
+      for (let i = 0; i < fruitCount; i++) {
+        foods.push({ ...randomPosition(), spawnTime: performance.now() });
+      }
+    }
+
+    function placeObstacles(count = 5) {
+      obstacles = [];
+      for (let i = 0; i < count; i++) {
+        obstacles.push(randomPosition([...foods]));
+      }
+    }
+
+    function placePowerup() {
+      powerup = { ...randomPosition([...foods, ...obstacles]), spawnTime: performance.now() };
+      clearTimeout(powerupTimeout);
+      powerupTimeout = setTimeout(() => powerup = null, 5000);
+    }
+
+    function gameOver(message) {
+      gameRunning = false;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem("snakeHighScore", highScore);
+        alert(`🎉 New High Score! ${message}`);
+      } else {
+        alert(message);
+      }
+      playAgainBtn.style.display = "block";
+    }
+
+    function moveRivalSnake() {
+      const head = { ...rivalSnake[0] };
+      const directions = [
+        { x: 1, y: 0 }, { x: -1, y: 0 },
+        { x: 0, y: 1 }, { x: 0, y: -1 }
+      ];
+      let moved = false;
+      while (!moved && directions.length) {
+        const d = directions.splice(Math.floor(Math.random() * directions.length), 1)[0];
+        const newHead = { x: head.x + d.x, y: head.y + d.y };
+        if (
+          newHead.x >= 0 && newHead.x < canvas.width / gridSize &&
+          newHead.y >= 0 && newHead.y < canvas.height / gridSize &&
+          !rivalSnake.some(s => s.x === newHead.x && s.y === newHead.y)
+        ) {
+          rivalSnake.unshift(newHead);
+          if (rivalSnake.length > snake.length) rivalSnake.pop();
+          moved = true;
+        }
+      }
+
+      // Rival eats fruit (grow but no effect on your snake)
+      foods.forEach((fruit, i) => {
+        if (rivalSnake[0].x === fruit.x && rivalSnake[0].y === fruit.y) {
+          foods[i] = randomPosition([...foods, ...obstacles, ...rivalSnake]);
+          rivalSnake.push({ ...rivalSnake[rivalSnake.length - 1] }); // grow rival
+        }
+      });
+    }
+
+    function gameTick() {
+      previousHead = { ...snake[0] };
+      direction = nextDirection;
+      const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+      currentHead = head;
+
+      // Check wall collision
+      if (
+        head.x < 0 || head.x >= canvas.width / gridSize ||
+        head.y < 0 || head.y >= canvas.height / gridSize
+      ) {
+        return gameOver("💥 Hit the wall!");
+      }
+
+      if (obstacles.some(ob => ob.x === head.x && ob.y === head.y)) {
+        return gameOver("💣 Hit an obstacle!");
+      }
+
+      if (
+        gameMode === "classic" &&
+        snake.some((seg, i) => seg.x === head.x && seg.y === head.y && i !== snake.length - 1)
+      ) return gameOver("☠️ Bit yourself!");
+
+      if (gameMode === "speed" && rivalSnake.some(seg => seg.x === head.x && seg.y === head.y)) {
+        return gameOver("⚠️ Collided with the rival snake!");
+      }
+
+      snake.unshift(head);
+
+      let ate = false;
+      foods.forEach((fruit, i) => {
+        if (head.x === fruit.x && head.y === fruit.y) {
+          foods[i] = { ...randomPosition([...foods, ...obstacles]), spawnTime: performance.now() };
+          score++;
+          ate = true;
+
+          if (score % 5 === 0) {
+            level++;
+            tickRate = Math.max(50, tickRate - 10);
+            if (level === 5) placeObstacles(5);
+            if (level >= 10 && !powerup) placePowerup();
+          }
+        }
+      });
+
+      if (!ate) snake.pop();
+
+      if (powerup && head.x === powerup.x && head.y === powerup.y) {
+        score += 3;
+        powerup = null;
+      }
+
+      if (gameMode === "speed") moveRivalSnake();
+
+      updateInfo();
+    }
+
+    function drawCell(x, y, color, scale = 1) {
+      const size = gridSize * scale;
+      const offset = gridSize * (1 - scale) / 2;
+      ctx.fillStyle = color;
+      ctx.fillRect(x * gridSize + offset, y * gridSize + offset, size, size);
+    }
+
+    function gameLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const delta = timestamp - lastTime;
+      lastTime = timestamp;
+      tickTimer += delta;
+
+      while (tickTimer >= tickRate) {
+        tickTimer -= tickRate;
+        gameTick();
+      }
+
+      const interp = tickTimer / tickRate;
+
+      ctx.fillStyle = "#111";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Snake
+      snake.forEach((seg, i) => {
+        if (i === 0 && gameMode === "classic" && previousHead && currentHead) {
+          const x = previousHead.x + (currentHead.x - previousHead.x) * interp;
+          const y = previousHead.y + (currentHead.y - previousHead.y) * interp;
+          drawCell(x, y, "#0f0");
+        } else {
+          drawCell(seg.x, seg.y, "#090");
+        }
+      });
+
+      if (gameMode === "speed") {
+        rivalSnake.forEach(seg => drawCell(seg.x, seg.y, "#f0f"));
+      }
+
+      const bounce = Math.abs(Math.sin(timestamp / 150)) * 0.2 + 0.8;
+      foods.forEach(fruit => drawCell(fruit.x, fruit.y, "#f00", bounce));
+      if (obstacles.length) obstacles.forEach(ob => drawCell(ob.x, ob.y, "#555"));
+      if (powerup) {
+        const pulse = 0.7 + 0.3 * Math.sin(timestamp / 100);
+        drawCell(powerup.x, powerup.y, "#00f", pulse);
+      }
+
+      if (gameRunning) requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener("keydown", e => {
+      switch (e.key) {
+        case "ArrowUp": if (direction.y === 0) nextDirection = { x: 0, y: -1 }; break;
+        case "ArrowDown": if (direction.y === 0) nextDirection = { x: 0, y: 1 }; break;
+        case "ArrowLeft": if (direction.x === 0) nextDirection = { x: -1, y: 0 }; break;
+        case "ArrowRight": if (direction.x === 0) nextDirection = { x: 1, y: 0 }; break;
+      }
+    });
+
+    startBtn.addEventListener("click", () => {
+      setup.style.display = "none";
+      canvas.style.display = "block";
+      info.style.display = "block";
+      initGame();
+    });
+
+    playAgainBtn.addEventListener("click", () => {
+      setup.style.display = "block";
+      canvas.style.display = "none";
+      info.style.display = "none";
+      playAgainBtn.style.display = "none";
+    });
+  </script>
+</body>
+</html>

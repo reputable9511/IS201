@@ -1,0 +1,64 @@
+.common{
+    text-align: center;
+    font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+
+.header{
+    background-color: black;
+    color: whitesmoke;
+    height: 100px;
+    line-height: 100px;
+}
+
+.mainbody{
+    padding-left: 100px;
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+/* 
+.footer{
+    position: fixed;
+    background-color:cornsilk;
+    color:black;
+    bottom: 0px;
+    left: 5px;
+    right: 5px;
+    height: 25px;
+    line-height: 25px; */
+/* } */
+
+img{
+    display: block;
+    width: 50%;
+    margin-left:auto;
+    margin-right:auto;
+}
+
+nav{
+    background-color:rgb(255, 255, 255);
+    padding: 10px;
+    overflow: hidden;
+}
+
+nav a{
+    color: #333;
+    text-decoration: none;
+    padding: 15px;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+nav a:hover{
+    background-color: #ffea63;
+}
+.centered-list{
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+    list-style-position: outside;
+    display: table;
+    text-align: left;
+}
+.youtube{
+    font-family:Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    padding-left: 100px;
+}
+body{
+    background-color: whitesmoke;
+}
